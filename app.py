@@ -230,10 +230,9 @@ def criar_grafico_estrategia(estrategias):
 # ========== INTERFACE ==========
 
 # Cabeçalho alinhado
-col1, col2 = st.columns([1, 4])
+col1, = st.columns([1])
+
 with col1:
-    st.image("https://www.assettocorsa.net/competizione/wp-content/uploads/2018/05/logo-ACC1.png", width=120)
-with col2:
     st.title("Calculadora de Estratégia de Combustível")
     st.caption("Otimize sua estratégia de pitstop e combustível para o Assetto Corsa Competizione")
 
