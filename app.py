@@ -1,37 +1,151 @@
 import streamlit as st
 import plotly.graph_objects as go
 
-# Configuração de cores para melhor distinção visual
+# ========== CONFIGURAÇÕES ==========
+
+st.set_page_config(
+    page_title="Estratégia de Combustível - ACC", 
+    layout="wide", 
+    page_icon="⛽",
+    initial_sidebar_state="expanded"
+)
+
+# Cores profissionais para o dashboard
 CORES_ESTRATEGIAS = {
-    "Conservadora (2 voltas extras)": "#2ca02c",  # Verde
-    "Recomendada (1.5 voltas extras)": "#1f77b4",  # Azul
-    "Arriscada (0.5 volta extra)": "#d62728"  # Vermelho
+    "Conservadora (2 voltas extras)": "#2ca02c",
+    "Recomendada (1.5 voltas extras)": "#1f77b4",
+    "Arriscada (0.5 volta extra)": "#d62728"
 }
 
-PISTAS = {
-    "Monza": 5793,
-    "Brands Hatch": 3908,
-    "Silverstone": 5891,
-    "Paul Ricard": 5842,
-    "Misano": 4226,
-    "Zandvoort": 4252,
-    "Spa-Francorchamps": 7004,
-    "Nürburgring": 5137,
-    "Hungaroring": 4381,
-    "Barcelona": 4655,
-    "Zolder": 4011,
-    "Imola": 4959,
-    "Oulton Park": 4037,
-    "Snetterton": 4779,
-    "Donington Park": 4020,
-    "Mount Panorama": 6213,
-    "Laguna Seca": 3602,
-    "Suzuka": 5807,
-    "Kyalami": 4522,
+CORES_DASHBOARD = {
+    "background": "#0E1117",
+    "text": "#FAFAFA",
+    "primary": "#FF4B4B",
+    "secondary": "#1A1A2E",
+    "card": "#1E1E2E"
 }
+
+# CSS personalizado para alinhamento perfeito
+st.markdown(f"""
+    <style>
+    /* Configurações gerais */
+    .main {{
+        background-color: {CORES_DASHBOARD['background']};
+        color: {CORES_DASHBOARD['text']};
+    }}
+    
+    /* Containers e cards */
+    .metric-container {{
+        background-color: {CORES_DASHBOARD['card']};
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }}
+    
+    .strategy-header {{
+        background-color: {CORES_DASHBOARD['secondary']};
+        border-radius: 10px 10px 0 0;
+        padding: 12px;
+        text-align: center;
+        color: white;
+        font-weight: 700;
+        margin-bottom: 0;
+    }}
+    
+    .strategy-card {{
+        background-color: {CORES_DASHBOARD['card']};
+        border-radius: 0 0 10px 10px;
+        padding: 20px;
+        height: 100%;
+    }}
+    
+    /* Grid alignment */
+    .metric-grid {{
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-top: 15px;
+    }}
+    
+    .metric-item {{
+        background-color: {CORES_DASHBOARD['secondary']};
+        border-radius: 8px;
+        padding: 12px;
+    }}
+    
+    /* Elementos de texto */
+    .metric-title {{
+        font-size: 12px;
+        font-weight: 600;
+        color: #AAAAAA;
+        margin-bottom: 5px;
+    }}
+    
+    .metric-value {{
+        font-size: 18px;
+        font-weight: 700;
+    }}
+    
+    /* Elementos de formulário */
+    .stNumberInput, .stRadio, .stSelectbox {{
+        margin-bottom: 10px;
+    }}
+    
+    .stTextInput>div>div>input {{
+        background-color: {CORES_DASHBOARD['secondary']};
+        color: {CORES_DASHBOARD['text']};
+    }}
+    
+    /* Botões */
+    .stButton>button {{
+        background-color: {CORES_DASHBOARD['primary']};
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        width: 100%;
+    }}
+    
+    /* Barras de progresso */
+    .stProgress>div>div>div {{
+        background-color: {CORES_DASHBOARD['primary']};
+    }}
+    
+    .progress-label {{
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 5px;
+    }}
+    
+    /* Alinhamento de colunas */
+    .st-emotion-cache-1v7f65g {{
+        display: flex;
+        align-items: stretch;
+    }}
+    
+    /* Ajuste de expansores */
+    .st-expander {{
+        background-color: {CORES_DASHBOARD['card']};
+        border: 1px solid #333344;
+    }}
+    
+    .st-expander .st-expanderHeader {{
+        font-weight: 600;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# ========== FUNÇÕES ==========
 
 def tempo_em_segundos(minutos, segundos):
     return minutos * 60 + segundos
+
+def formatar_tempo(segundos):
+    minutos = int(segundos // 60)
+    segundos_rest = int(segundos % 60)
+    return f"{minutos}:{segundos_rest:02d}"
 
 def calcular_estrategia_combustivel(volta_rapida, volta_lenta, consumo, duracao_corrida, stint_max, antec_box, margem_voltas, num_pitstops, reabastecimento):
     tempo_rapido = tempo_em_segundos(*volta_rapida)
@@ -46,175 +160,238 @@ def calcular_estrategia_combustivel(volta_rapida, volta_lenta, consumo, duracao_
     if not reabastecimento:
         combustivel_inicial = consumo_total
         numero_de_stints = 1
-        combustivel_por_stint = consumo_total
+        combustivel_por_stint = [consumo_total]
         combustivel_por_parada = 0
     else:
         numero_de_stints = (duracao_corrida // stint_max) + (1 if duracao_corrida % stint_max else 0)
-        combustivel_por_stint = consumo_total / numero_de_stints
-        combustivel_por_parada = combustivel_por_stint / num_pitstops if num_pitstops else 0
-        combustivel_inicial = combustivel_por_stint
+        combustivel_por_stint = [consumo_total / numero_de_stints] * numero_de_stints
+        if numero_de_stints > 1:
+            combustivel_por_stint[-1] *= 0.8
+        combustivel_por_parada = sum(combustivel_por_stint[1:]) / num_pitstops if num_pitstops else 0
+        combustivel_inicial = combustivel_por_stint[0]
+
+    autonomia = duracao_total_seg / consumo_total * consumo
 
     return {
         "voltas_estimada": int(voltas_estimada),
+        "media_tempo": media_tempo,
         "voltas_com_margem": int(voltas_com_margem),
         "consumo_total": consumo_total,
         "numero_de_stints": numero_de_stints,
         "combustivel_por_stint": combustivel_por_stint,
         "combustivel_por_parada": combustivel_por_parada,
-        "combustivel_inicial": combustivel_inicial
+        "combustivel_inicial": combustivel_inicial,
+        "autonomia": autonomia
     }
 
-# Interface do usuário
-st.set_page_config(layout="wide")
-st.title("🔧 Calculadora de Estratégia de Combustível - ACC")
-
-# Seção de seleção de parâmetros
-with st.expander("🔧 Configurações da Corrida", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        pista_escolhida = st.selectbox("Selecione o circuito da corrida:", options=list(PISTAS.keys()))
-        min_rapida = st.number_input("Minutos da volta mais rápida", min_value=0, max_value=10, value=1)
-        seg_rapida = st.number_input("Segundos da volta mais rápida", min_value=0, max_value=59, value=50)
-        
-    with col2:
-        st.markdown(f"**Comprimento da pista selecionada:** {PISTAS[pista_escolhida]} metros")
-        min_lenta = st.number_input("Minutos da volta mais lenta", min_value=0, max_value=10, value=2)
-        seg_lenta = st.number_input("Segundos da volta mais lenta", min_value=0, max_value=59, value=20)
-
-    col3, col4 = st.columns([2, 1])
-    with col3:
-        consumo = st.number_input("Consumo médio por volta (litros)", min_value=0.1, step=0.1, value=3.25)
-    with col4:
-        margem_litros = st.number_input("Margem de segurança (litros)", min_value=0.0, step=0.1, value=0.0, 
-                                      help="Valor adicional somado ao consumo médio por volta")
-
-    consumo += margem_litros
-
-    col5, col6, col7 = st.columns(3)
-    with col5:
-        duracao_corrida = st.number_input("Duração da corrida (minutos)", min_value=1, value=30)
-    with col6:
-        stint_max = st.number_input("Duração máxima de cada stint (minutos)", min_value=1, value=15)
-    with col7:
-        antec_box = st.number_input("Entrar no box com quantos minutos restantes do stint?", 
-                                  min_value=0, max_value=stint_max-1, value=1)
-
-    col8, col9 = st.columns(2)
-    with col8:
-        duracao_stint_piloto = st.number_input("Duração do stint de cada piloto (minutos)", min_value=1, value=15)
-    with col9:
-        num_pitstops = st.number_input("Número de pitstops obrigatórios", min_value=0, value=2)
-
-    reabastecimento_input = st.radio("A corrida permite reabastecimento?", options=["Sim", "Não"], index=0, horizontal=True)
-    reabastecimento = reabastecimento_input == "Sim"
-
-# Botão de cálculo
-if st.button("🎯 Calcular Estratégia", use_container_width=True):
-    estrategias = {}
-    for nome, margem in zip(["Conservadora (2 voltas extras)", "Recomendada (1.5 voltas extras)", "Arriscada (0.5 volta extra)"], [2, 1.5, 0.5]):
-        estrategias[nome] = calcular_estrategia_combustivel(
-            (min_rapida, seg_rapida),
-            (min_lenta, seg_lenta),
-            consumo,
-            duracao_corrida,
-            stint_max,
-            antec_box,
-            margem,
-            num_pitstops,
-            reabastecimento
-        )
-
-    # Exibição das estratégias lado a lado
-    st.subheader("🏁 Estratégias Calculadas")
-    cols = st.columns(3)
-    
-    for i, (nome, est) in enumerate(estrategias.items()):
-        with cols[i]:
-            st.markdown(
-                f"<div style='background-color:{CORES_ESTRATEGIAS[nome]};padding:10px;border-radius:10px;text-align:center'>"
-                f"<h3 style='color:white;margin:0;'>{nome}</h3>"
-                "</div>",
-                unsafe_allow_html=True
-            )
-            
-            st.metric("🔁 Voltas totais", f"{est['voltas_com_margem']}")
-            st.metric("⛽ Combustível total", f"{est['consumo_total']:.2f} L")
-            st.metric("🔄 Nº de stints", est['numero_de_stints'])
-            if reabastecimento:
-                st.metric("⛽ Por parada", f"{est['combustivel_por_parada']:.2f} L")
-            st.metric("🏁 Tanque inicial", f"{est['combustivel_inicial']:.2f} L")
-
-    # Gráfico de Barras Agrupadas com Linhas de Referência
-    st.subheader("📊 Comparação Visual das Estratégias")
-    
+def criar_grafico_estrategia(estrategias):
     fig = go.Figure()
     
-    # Valores máximos para as linhas de referência
-    max_combustivel = max(est['consumo_total'] for est in estrategias.values())
-    max_tanque = max(est['combustivel_inicial'] for est in estrategias.values())
-    
-    # Adicionando barras para Combustível Total
-    fig.add_trace(go.Bar(
-        x=list(estrategias.keys()),
-        y=[est['consumo_total'] for est in estrategias.values()],
-        name='Combustível Total',
-        marker_color=[CORES_ESTRATEGIAS[nome] for nome in estrategias.keys()],
-        opacity=0.7,
-        text=[f"{est['consumo_total']:.1f}L" for est in estrategias.values()],
-        textposition='outside',
-        hoverinfo='text',
-        textfont=dict(size=12)
-    ))
-    
-    # Adicionando barras para Tanque Inicial
-    fig.add_trace(go.Bar(
-        x=list(estrategias.keys()),
-        y=[est['combustivel_inicial'] for est in estrategias.values()],
-        name='Tanque Inicial',
-        marker_color=[CORES_ESTRATEGIAS[nome] for nome in estrategias.keys()],
-        opacity=0.9,
-        text=[f"{est['combustivel_inicial']:.1f}L" for est in estrategias.values()],
-        textposition='inside',
-        hoverinfo='text',
-        textfont=dict(color='white', size=12)
-    ))
-    
-    # Adicionando linhas de referência horizontais
-    for valor in [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]:  # Valores de referência em litros
-        if valor < max(max_combustivel, max_tanque) * 1.1:  # Só mostra linhas até pouco acima do valor máximo
-            fig.add_hline(y=valor, line_dash="dot",
-                         line_color="gray", line_width=0.5,
-                         annotation_text=f"{valor}L", 
-                         annotation_position="right",
-                         annotation_font_size=10,
-                         annotation_font_color="gray")
+    for nome, est in estrategias.items():
+        color = CORES_ESTRATEGIAS[nome]
+        
+        fig.add_trace(go.Bar(
+            x=[nome],
+            y=[est['voltas_com_margem']],
+            name='Voltas + Margem',
+            marker_color=color,
+            opacity=0.8,
+            text=[f"{est['voltas_com_margem']}"],
+            textposition='auto',
+            hoverinfo='text',
+            hovertext=f"Voltas totais: {est['voltas_com_margem']}<br>Combustível total: {est['consumo_total']:.2f}L"
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=[nome],
+            y=[est['numero_de_stints'] * (max([e['voltas_com_margem'] for e in estrategias.values()]) / 5)],
+            mode='markers+text',
+            marker=dict(size=15, color=color),
+            text=[f"Stints: {est['numero_de_stints']}"],
+            textposition="top center",
+            name='Número de Stints',
+            hoverinfo='none'
+        ))
     
     fig.update_layout(
+        title='Comparação de Estratégias',
         barmode='group',
-        title=dict(
-            text="<b>Comparação entre Estratégias</b>",
-            x=0.5,
-            font=dict(size=18)
-        ),
-        xaxis=dict(
-            title='Estratégias',
-            tickfont=dict(size=12)
-        ),
-        yaxis=dict(
-            title='Litros de Combustível',
-            gridcolor='rgba(200,200,200,0.2)',
-            range=[0, max(max_combustivel, max_tanque) * 1.15]
-        ),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5
-        ),
-        hovermode="x unified",
-        height=500,
-        margin=dict(t=100, r=40)  # Margem maior no topo para o título
+        plot_bgcolor=CORES_DASHBOARD['card'],
+        paper_bgcolor=CORES_DASHBOARD['background'],
+        font=dict(color=CORES_DASHBOARD['text']),
+        xaxis_title='Estratégia',
+        yaxis_title='Voltas',
+        showlegend=False,
+        height=400
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    return fig
+
+# ========== INTERFACE ==========
+
+# Cabeçalho alinhado
+col1, col2 = st.columns([1, 4])
+with col1:
+    st.image("https://www.assettocorsa.net/competizione/wp-content/uploads/2018/05/logo-ACC1.png", width=120)
+with col2:
+    st.title("Calculadora de Estratégia de Combustível")
+    st.caption("Otimize sua estratégia de pitstop e combustível para o Assetto Corsa Competizione")
+
+# Divisão em abas
+tab1, = st.tabs(["📊 Calculadora"])
+
+with tab1:
+    with st.expander("⚙️ CONFIGURAÇÕES DA CORRIDA", expanded=True):
+        # Seção 1: Desempenho nas Voltas
+        st.subheader("🏁 DESEMPENHO NAS VOLTAS")
+        col1, col2 = st.columns(2)
+        with col1:
+            min_rapida = st.number_input("Minutos da volta mais rápida", 0, 10, 1, key="min_rapida")
+            seg_rapida = st.number_input("Segundos da volta mais rápida", 0, 59, 50, key="seg_rapida")
+        with col2:
+            min_lenta = st.number_input("Minutos da volta mais lenta", 0, 10, 2, key="min_lenta")
+            seg_lenta = st.number_input("Segundos da volta mais lenta", 0, 59, 20, key="seg_lenta")
+        
+        # Seção 2: Consumo de Combustível
+        st.subheader("⛽ CONSUMO DE COMBUSTÍVEL")
+        col3, col4 = st.columns(2)
+        with col3:
+            consumo = st.number_input("Consumo médio por volta (L)", 0.1, 10.0, step=0.1, value=3.25, key="consumo")
+        with col4:
+            margem_litros = st.number_input("Margem de segurança por volta (L)", 0.0, 2.0, step=0.1, value=0.0, key="margem")
+        consumo += margem_litros
+
+        # Seção 3: Configurações da Estratégia
+        st.subheader("🏎️ CONFIGURAÇÕES DA ESTRATÉGIA")
+        col5, col6, col7 = st.columns(3)
+        with col5:
+            duracao_corrida = st.number_input("Duração da corrida (min)", 1, 1000, value=30, key="duracao")
+        with col6:
+            stint_max = st.number_input("Duração máxima de stint (min)", 1, 1000, value=15, key="stint")
+        with col7:
+            antec_box = st.number_input("Antecipar pit (min)", 0, stint_max - 1, 1, key="antecipar")
+
+        col8, col9 = st.columns(2)
+        with col8:
+            num_pitstops = st.number_input("Nº de pitstops obrigatórios", 0, 10, value=2, key="pits")
+        with col9:
+            reabastecimento = st.radio("Reabastecimento permitido?", ["Sim", "Não"], index=0, horizontal=True, key="reabastecer") == "Sim"
+
+    if st.button("📈 CALCULAR ESTRATÉGIA", use_container_width=True, type="primary"):
+        estrategias = {}
+        margens = [2, 1.5, 0.5]
+        nomes = list(CORES_ESTRATEGIAS.keys())
+
+        for nome, margem in zip(nomes, margens):
+            estrategias[nome] = calcular_estrategia_combustivel(
+                (min_rapida, seg_rapida),
+                (min_lenta, seg_lenta),
+                consumo,
+                duracao_corrida,
+                stint_max,
+                antec_box,
+                margem,
+                num_pitstops,
+                reabastecimento
+            )
+
+
+        # Resultados detalhados
+        st.subheader("📋 DETALHES DAS ESTRATÉGIAS")
+        cols = st.columns(3)
+
+        for i, (nome, est) in enumerate(estrategias.items()):
+            with cols[i]:
+                # Cabeçalho da estratégia
+                st.markdown(
+                    f"<div class='strategy-header' style='background-color:{CORES_ESTRATEGIAS[nome]};'>"
+                    f"{nome}</div>",
+                    unsafe_allow_html=True
+                )
+                
+                # Card de métricas
+                with st.container():
+                    st.markdown("<div class='strategy-card'>", unsafe_allow_html=True)
+                    
+                    # Grid de métricas perfeitamente alinhadas
+                    st.markdown("<div class='metric-grid'>", unsafe_allow_html=True)
+                    
+                    # Métrica 1
+                    st.markdown(f"""
+                        <div class='metric-item'>
+                            <div class='metric-title'>VOLTAS ESTIMADAS</div>
+                            <div class='metric-value'>{est['voltas_estimada']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Métrica 2
+                    st.markdown(f"""
+                        <div class='metric-item'>
+                            <div class='metric-title'>VOLTAS + MARGEM</div>
+                            <div class='metric-value'>{est['voltas_com_margem']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Métrica 3
+                    st.markdown(f"""
+                        <div class='metric-item'>
+                            <div class='metric-title'>MÉDIA POR VOLTA</div>
+                            <div class='metric-value'>{formatar_tempo(est['media_tempo'])}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Métrica 4
+                    st.markdown(f"""
+                        <div class='metric-item'>
+                            <div class='metric-title'>COMBUSTÍVEL TOTAL</div>
+                            <div class='metric-value'>{est['consumo_total']:.2f} L</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Métrica 5
+                    st.markdown(f"""
+                        <div class='metric-item'>
+                            <div class='metric-title'>STINTS</div>
+                            <div class='metric-value'>{est['numero_de_stints']}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Métrica 6
+                    st.markdown(f"""
+                        <div class='metric-item'>
+                            <div class='metric-title'>AUTONOMIA</div>
+                            <div class='metric-value'>{est['autonomia']:.1f} s</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if reabastecimento:
+                        # Métrica 7
+                        st.markdown(f"""
+                            <div class='metric-item'>
+                                <div class='metric-title'>COMB. POR PARADA</div>
+                                <div class='metric-value'>{est['combustivel_por_parada']:.2f} L</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Métrica 8
+                        st.markdown(f"""
+                            <div class='metric-item'>
+                                <div class='metric-title'>TANQUE INICIAL</div>
+                                <div class='metric-value'>{est['combustivel_inicial']:.2f} L</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)  # Fecha metric-grid
+                    
+                    # Barras de progresso para stints (se aplicável)
+                    if reabastecimento and est['numero_de_stints'] > 1:
+                        st.markdown("<div class='progress-container'>", unsafe_allow_html=True)
+                        st.markdown("<div class='metric-title'>DISTRIBUIÇÃO POR STINT</div>", unsafe_allow_html=True)
+                        for j, c in enumerate(est['combustivel_por_stint']):
+                            st.progress(
+                                min(c / est['consumo_total'], 1.0), 
+                                text=f"Stint {j+1}: {c:.2f} L ({c/est['consumo_total']*100:.1f}%)"
+                            )
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)  # Fecha strategy-card
